@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AnyShot — Universal Data Extractor</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --bg:#080a0e;--surface:#0e1117;--surface2:#141820;--border:#1e2533;--border2:#2a3347;
+    --accent:#e8ff47;--accent2:#47c8ff;--accent3:#ff6b47;--text:#f0f2f7;--text2:#8892a4;--text3:#4a5568;--success:#47ffaa;
+    --font:'Syne',sans-serif;--mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(232,255,71,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(232,255,71,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+  .wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:0 24px}
+  header{padding:36px 0 16px;display:flex;align-items:center;justify-content:space-between}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo-mark{width:34px;height:34px;background:var(--accent);display:grid;place-items:center;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)}
+  .logo-mark svg{width:16px;height:16px}
+  .logo-text{font-size:19px;font-weight:800;letter-spacing:-.5px}
+  .logo-text span{color:var(--accent)}
+  .badge{font-family:var(--mono);font-size:10px;color:var(--accent);background:rgba(232,255,71,.08);border:1px solid rgba(232,255,71,.2);padding:4px 10px;letter-spacing:2px}
+  .hero{padding:48px 0 36px;text-align:center}
+  .eyebrow{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-bottom:16px}
+  h1{font-size:clamp(38px,7vw,66px);font-weight:800;line-height:.95;letter-spacing:-3px;margin-bottom:16px}
+  h1 .l1{display:block;color:var(--text)}
+  h1 .l2{display:block;color:var(--accent)}
+  .hero p{font-family:var(--mono);font-size:12px;color:var(--text2);max-width:480px;margin:0 auto;line-height:1.9}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin-bottom:28px}
+  .stat{background:var(--surface);padding:16px;text-align:center}
+  .stat-n{font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;line-height:1;margin-bottom:4px}
+  .stat-l{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase}
+  .card{background:var(--surface);border:1px solid var(--border);padding:18px 22px;margin-bottom:20px;position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+  .lbl{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+  .row{display:flex;gap:10px;align-items:center}
+  .inp{flex:1;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:12px;padding:10px 14px;outline:none;transition:border-color .2s}
+  .inp::placeholder{color:var(--text3)}
+  .inp:focus{border-color:var(--accent)}
+  .ext-link{font-family:var(--mono);font-size:10px;color:var(--accent2);text-decoration:none;letter-spacing:1px;white-space:nowrap;opacity:.8;transition:opacity .2s}
+  .ext-link:hover{opacity:1}
+  .key-status{font-family:var(--mono);font-size:10px;margin-top:8px;padding:6px 10px;display:none}
+  .key-status.ok{display:block;color:var(--success);background:rgba(71,255,170,.06);border:1px solid rgba(71,255,170,.15)}
+  .key-status.err{display:block;color:var(--accent3);background:rgba(255,107,71,.06);border:1px solid rgba(255,107,71,.2)}
+  .type-tabs{display:flex;gap:1px;background:var(--border);margin-bottom:20px}
+  .type-tab{flex:1;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;padding:12px 8px;background:var(--surface);border:none;color:var(--text3);cursor:pointer;transition:all .2s;text-align:center}
+  .type-tab:hover{background:var(--surface2);color:var(--text2)}
+  .type-tab.active{background:var(--surface2);color:var(--accent);border-bottom:2px solid var(--accent)}
+  .type-tab .tab-icon{display:block;font-size:16px;margin-bottom:4px}
+  .upload-zone{border:1.5px dashed var(--border2);background:var(--surface);padding:52px 40px;text-align:center;cursor:pointer;transition:all .25s;position:relative;margin-bottom:8px}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(232,255,71,.02)}
+  .upload-zone.has-file{padding:20px;border-color:rgba(71,200,255,.4);cursor:default}
+  .upload-zone.processing{opacity:.6;pointer-events:none}
+  .up-icon{width:50px;height:50px;margin:0 auto 16px;background:var(--surface2);border:1px solid var(--border2);display:grid;place-items:center;transition:all .25s}
+  .upload-zone:hover .up-icon{background:rgba(232,255,71,.08);border-color:var(--accent)}
+  .up-icon svg{width:22px;height:22px;stroke:var(--text2)}
+  .upload-zone:hover .up-icon svg{stroke:var(--accent)}
+  .up-title{font-size:15px;font-weight:700;margin-bottom:6px;letter-spacing:-.2px}
+  .up-sub{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:1px}
+  .up-sub span{color:var(--accent2)}
+  #fileInput{display:none}
+  .file-preview{display:none}
+  .file-preview.visible{display:block}
+  .img-preview{max-width:100%;max-height:260px;object-fit:contain;border:1px solid var(--border2);display:block;margin:0 auto}
+  .file-info{font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:12px;display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap}
+  .file-info .fname{color:var(--accent2)}
+  .file-badge{font-family:var(--mono);font-size:9px;background:var(--surface2);border:1px solid var(--border2);color:var(--text3);padding:3px 8px;letter-spacing:1px;text-transform:uppercase}
+  .change-btn{font-family:var(--mono);font-size:10px;color:var(--accent2);background:transparent;border:1px solid rgba(71,200,255,.3);padding:4px 10px;cursor:pointer;letter-spacing:1px;transition:all .2s}
+  .change-btn:hover{border-color:var(--accent2)}
+  .text-preview{background:var(--bg);border:1px solid var(--border2);padding:16px;font-family:var(--mono);font-size:11px;color:var(--text2);max-height:160px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;margin-top:12px;line-height:1.7;display:none}
+  .text-preview.visible{display:block}
+  .warn{font-family:var(--mono);font-size:10px;color:var(--accent3);margin-top:6px;text-align:center;display:none}
+  .warn.visible{display:block}
+  .fmt-section{margin-bottom:20px}
+  .fmt-grid{display:flex;gap:6px;flex-wrap:wrap}
+  .fmt-btn{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;padding:8px 14px;background:var(--surface);border:1px solid var(--border2);color:var(--text2);cursor:pointer;transition:all .2s}
+  .fmt-btn:hover{border-color:var(--text2);color:var(--text)}
+  .fmt-btn.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+  .prompt-inp{width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:12px;padding:12px 16px;outline:none;resize:vertical;min-height:56px;transition:border-color .2s;line-height:1.6}
+  .prompt-inp::placeholder{color:var(--text3)}
+  .prompt-inp:focus{border-color:var(--accent)}
+  .err-box{background:rgba(255,107,71,.07);border:1px solid rgba(255,107,71,.3);border-left:3px solid var(--accent3);padding:14px 18px;font-family:var(--mono);font-size:12px;color:var(--accent3);display:none;margin-bottom:16px;line-height:1.7}
+  .err-box.visible{display:block}
+  .go-btn{width:100%;padding:17px;background:var(--accent);border:none;color:#000;font-family:var(--font);font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;margin-bottom:32px}
+  .go-btn:hover:not(:disabled){background:#fff;transform:translateY(-1px);box-shadow:0 8px 28px rgba(232,255,71,.25)}
+  .go-btn:disabled{background:var(--surface2);color:var(--text3);cursor:not-allowed}
+  .btn-inner{display:flex;align-items:center;justify-content:center;gap:10px}
+  .spinner{width:15px;height:15px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:none}
+  .go-btn.loading .spinner{display:block}
+  .go-btn.loading .btn-txt{opacity:.75}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loader-dots{display:none;gap:4px;justify-content:center;margin-top:8px}
+  .loader-dots.visible{display:flex}
+  .loader-dots span{width:6px;height:6px;background:var(--text3);border-radius:50%;animation:dotPulse 1.2s ease infinite}
+  .loader-dots span:nth-child(2){animation-delay:.2s}
+  .loader-dots span:nth-child(3){animation-delay:.4s}
+  @keyframes dotPulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1.2)}}
+  .results{display:none}
+  .results.visible{display:block;animation:fadeUp .35s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .res-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+  .res-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--success);display:flex;align-items:center;gap:8px}
+  .res-title::before{content:'';width:6px;height:6px;background:var(--success);border-radius:50%;animation:pulse 1.5s ease infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+  .act-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .act-btn{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:7px 13px;background:transparent;border:1px solid var(--border2);color:var(--text2);cursor:pointer;transition:all .2s}
+  .act-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+  .act-btn.flash{border-color:var(--success)!important;color:var(--success)!important}
+  .result-out{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);padding:22px;font-family:var(--mono);font-size:12px;line-height:1.8;color:var(--text);white-space:pre-wrap;word-break:break-word;max-height:480px;overflow-y:auto}
+  .result-out::-webkit-scrollbar{width:4px}
+  .result-out::-webkit-scrollbar-thumb{background:var(--border2)}
+  .tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);max-height:480px;overflow-y:auto}
+  .rtbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+  .rtbl th{background:var(--surface2);color:var(--accent);font-weight:500;letter-spacing:1px;text-transform:uppercase;font-size:10px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border2);white-space:nowrap}
+  .rtbl td{padding:10px 14px;color:var(--text);border-bottom:1px solid var(--border);vertical-align:top}
+  .rtbl tr:hover td{background:rgba(232,255,71,.02)}
+  .rtbl tr:last-child td{border-bottom:none}
+  .parse-note{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px;padding:6px 10px;background:rgba(232,255,71,.04);border:1px solid rgba(232,255,71,.1)}
+  .uses{margin:36px 0 40px}
+  .use-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--border)}
+  .use-item{background:var(--surface);padding:16px;transition:background .2s}
+  .use-item:hover{background:var(--surface2)}
+  .use-icon{font-size:19px;margin-bottom:7px}
+  .use-title{font-size:12px;font-weight:700;margin-bottom:3px;letter-spacing:-.2px}
+  .use-desc{font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.6}
+  footer{border-top:1px solid var(--border);padding:20px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  footer p{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px}
+  footer span{color:var(--accent)}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border2)}
+  @media(max-width:600px){h1{letter-spacing:-2px}.stats{grid-template-columns:repeat(2,1fr)}.type-tab .tab-lbl{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
+      </div>
+      <div class="logo-text">Any<span>Shot</span></div>
+    </div>
+    <div class="badge">FREE · NO SIGNUP</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">// Universal Data Extraction Engine</div>
+    <h1><span class="l1">ANY FILE</span><span class="l2">→ DATA</span></h1>
+    <p>Images, PDFs, Word docs, PowerPoints, text files — extract structured data from anything. Free forever.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n">∞</div><div class="stat-l">Free Uses</div></div>
+    <div class="stat"><div class="stat-n">8+</div><div class="stat-l">File Types</div></div>
+    <div class="stat"><div class="stat-n">6</div><div class="stat-l">Formats Out</div></div>
+    <div class="stat"><div class="stat-n">&lt;5s</div><div class="stat-l">Avg Speed</div></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">// Gemini API Key — stored in your browser only</div>
+    <div class="row">
+      <input type="password" class="inp" id="apiKey" placeholder="Paste your free Gemini API key...">
+      <a href="https://aistudio.google.com/app/apikey" target="_blank" class="ext-link">GET FREE KEY →</a>
+    </div>
+    <div class="key-status" id="keyStatus"></div>
+  </div>
+
+  <div class="type-tabs" id="typeTabs">
+    <button class="type-tab active" data-type="image">
+      <span class="tab-icon">🖼️</span>
+      <span class="tab-lbl">Image</span>
+    </button>
+    <button class="type-tab" data-type="pdf">
+      <span class="tab-icon">📄</span>
+      <span class="tab-lbl">PDF</span>
+    </button>
+    <button class="type-tab" data-type="docx">
+      <span class="tab-icon">📝</span>
+      <span class="tab-lbl">Word</span>
+    </button>
+    <button class="type-tab" data-type="pptx">
+      <span class="tab-icon">📊</span>
+      <span class="tab-lbl">PowerPoint</span>
+    </button>
+    <button class="type-tab" data-type="text">
+      <span class="tab-icon">📋</span>
+      <span class="tab-lbl">Text/MD</span>
+    </button>
+  </div>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput">
+    <div id="uploadPlaceholder">
+      <div class="up-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+        </svg>
+      </div>
+      <div class="up-title" id="upTitle">Drop your file here</div>
+      <div class="up-sub" id="upSub">or click to browse — <span id="upTypes">PNG, JPG, WEBP, GIF</span></div>
+    </div>
+    <div class="file-preview" id="filePreview">
+      <img class="img-preview" id="imgPreview" alt="Uploaded file preview">
+      <div class="text-preview" id="textPreview"></div>
+      <div class="file-info" id="fileInfo"></div>
+    </div>
+  </div>
+  <div class="loader-dots" id="fileLoader"><span></span><span></span><span></span></div>
+  <div class="warn" id="sizeWarn">⚠ Large file — extraction may take longer.</div>
+
+  <div class="fmt-section" style="margin-top:20px">
+    <div class="lbl">// Output Format</div>
+    <div class="fmt-grid">
+      <button class="fmt-btn active" data-fmt="table">Table</button>
+      <button class="fmt-btn" data-fmt="json">JSON</button>
+      <button class="fmt-btn" data-fmt="csv">CSV</button>
+      <button class="fmt-btn" data-fmt="list">List</button>
+      <button class="fmt-btn" data-fmt="markdown">Markdown</button>
+      <button class="fmt-btn" data-fmt="summary">Summary</button>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px">
+    <div class="lbl" style="margin-bottom:10px">// Custom Instruction (optional)</div>
+    <textarea class="prompt-inp" id="customPrompt" placeholder="e.g. 'Extract only prices and names' or leave blank for auto..."></textarea>
+  </div>
+
+  <div class="err-box" id="errBox"></div>
+
+  <button class="go-btn" id="goBtn" disabled>
+    <div class="btn-inner">
+      <div class="spinner"></div>
+      <span class="btn-txt">EXTRACT DATA</span>
+    </div>
+  </button>
+
+  <div class="results" id="results">
+    <div class="res-header">
+      <div class="res-title">EXTRACTION COMPLETE</div>
+      <div class="act-btns">
+        <button class="act-btn" id="copyBtn">COPY</button>
+        <button class="act-btn" id="dlBtn">DOWNLOAD</button>
+        <button class="act-btn" id="newBtn">NEW FILE</button>
+      </div>
+    </div>
+    <div id="resultBox"></div>
+  </div>
+
+  <div class="uses">
+    <div class="lbl" style="margin-bottom:14px">// Works On Everything</div>
+    <div class="use-grid">
+      <div class="use-item"><div class="use-icon">🖼️</div><div class="use-title">Screenshots</div><div class="use-desc">Any image with data</div></div>
+      <div class="use-item"><div class="use-icon">📄</div><div class="use-title">PDF Reports</div><div class="use-desc">Invoices, statements, papers</div></div>
+      <div class="use-item"><div class="use-icon">📝</div><div class="use-title">Word Docs</div><div class="use-desc">.docx files</div></div>
+      <div class="use-item"><div class="use-icon">📊</div><div class="use-title">PowerPoint</div><div class="use-desc">Slide text and data</div></div>
+      <div class="use-item"><div class="use-icon">📋</div><div class="use-title">Text & Markdown</div><div class="use-desc">.txt, .md files</div></div>
+      <div class="use-item"><div class="use-icon">🧾</div><div class="use-title">Forms & Receipts</div><div class="use-desc">Scanned documents</div></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>ANYSHOT — <span>FREE</span> universal data extraction</p>
+    <p>Powered by <span>Gemini</span> · No data stored · No signup</p>
+  </footer>
+</div>
+
+<script>
+let fileData = null;
+let fileText = null;
+let fileMime = null;
+let fileType = 'image';
+let fileName = '';
+let selectedFmt = 'table';
+let lastRaw = '';
+
+const ACCEPT = {
+  image: 'image/png,image/jpeg,image/webp,image/gif,image/bmp',
+  pdf: 'application/pdf',
+  docx: '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: '.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  text: '.txt,.md,text/plain,text/markdown'
+};
+
+const LABELS = {
+  image: 'PNG, JPG, WEBP, GIF',
+  pdf: 'PDF files',
+  docx: 'DOCX (Word) files',
+  pptx: 'PPTX (PowerPoint) files',
+  text: 'TXT, MD files'
+};
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_TEXT_CHARS = 30000;
+
+const apiKeyEl = document.getElementById('apiKey');
+const keyStatus = document.getElementById('keyStatus');
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const upPlaceholder = document.getElementById('uploadPlaceholder');
+const upTitle = document.getElementById('upTitle');
+const upSub = document.getElementById('upSub');
+const upTypes = document.getElementById('upTypes');
+const filePreview = document.getElementById('filePreview');
+const imgPreview = document.getElementById('imgPreview');
+const textPreview = document.getElementById('textPreview');
+const fileInfo = document.getElementById('fileInfo');
+const fileLoader = document.getElementById('fileLoader');
+const sizeWarn = document.getElementById('sizeWarn');
+const goBtn = document.getElementById('goBtn');
+const errBox = document.getElementById('errBox');
+const results = document.getElementById('results');
+const resultBox = document.getElementById('resultBox');
+const copyBtn = document.getElementById('copyBtn');
+const dlBtn = document.getElementById('dlBtn');
+const newBtn = document.getElementById('newBtn');
+
+const savedKey = localStorage.getItem('anyshot_key');
+if (savedKey) { apiKeyEl.value = savedKey; checkKey(savedKey); }
+
+apiKeyEl.addEventListener('input', () => {
+  const k = apiKeyEl.value.trim();
+  localStorage.setItem('anyshot_key', k);
+  checkKey(k);
+  checkReady();
+});
+
+function checkKey(k) {
+  if (!k) { keyStatus.className = 'key-status'; return; }
+  if (k.length > 20) {
+    keyStatus.className = 'key-status ok';
+    keyStatus.textContent = '✓ Key accepted (length valid)';
+  } else {
+    keyStatus.className = 'key-status err';
+    keyStatus.textContent = '⚠ Key seems too short';
+  }
+}
+
+document.querySelectorAll('.type-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    fileType = tab.dataset.type;
+    fileInput.accept = ACCEPT[fileType];
+    upTypes.textContent = LABELS[fileType];
+    resetFile();
+  });
+});
+
+fileInput.accept = ACCEPT['image'];
+
+document.querySelectorAll('.fmt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedFmt = btn.dataset.fmt;
+  });
+});
+
+uploadZone.addEventListener('click', () => { if (!fileData && !fileText) fileInput.click(); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); if (!fileData && !fileText) uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  if (fileData || fileText) return;
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (!goBtn.disabled) goBtn.click();
+  }
+});
+
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+async function handleFile(file) {
+  if (file.size > MAX_FILE_SIZE) {
+    showError(`File too large (${(file.size/1024/1024).toFixed(1)} MB). Max: ${MAX_FILE_SIZE/1024/1024} MB`);
+    return;
+  }
+
+  fileName = file.name;
+  fileMime = file.type;
+  sizeWarn.classList.toggle('visible', file.size > 4 * 1024 * 1024);
+  errBox.classList.remove('visible');
+  fileLoader.classList.add('visible');
+
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  try {
+    if (fileType === 'image' || file.type.startsWith('image/')) {
+      const dataUrl = await readAsDataURL(file);
+      fileData = dataUrl.split(',')[1];
+      fileMime = file.type;
+      imgPreview.src = dataUrl;
+      imgPreview.style.display = 'block';
+      textPreview.classList.remove('visible');
+      showFileInfo(file);
+      return;
+    }
+
+    if (fileType === 'pdf' || file.type === 'application/pdf') {
+      const dataUrl = await readAsDataURL(file);
+      fileData = dataUrl.split(',')[1];
+      fileMime = 'application/pdf';
+      imgPreview.style.display = 'none';
+      textPreview.classList.remove('visible');
+      textPreview.textContent = '';
+      showFileInfo(file, '📄 PDF loaded');
+      return;
+    }
+
+    if (ext === 'docx') {
+      const arrayBuf = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer: arrayBuf });
+      fileText = result.value;
+      fileMime = 'text/plain';
+      imgPreview.style.display = 'none';
+      textPreview.textContent = fileText.slice(0, 800) + (fileText.length > 800 ? '\n...' : '');
+      textPreview.classList.add('visible');
+      showFileInfo(file, `📝 ${fileText.split(/\s+/).length} words`);
+      return;
+    }
+
+    if (ext === 'pptx') {
+      const text = await extractPptxText(file);
+      fileText = text;
+      fileMime = 'text/plain';
+      imgPreview.style.display = 'none';
+      textPreview.textContent = fileText.slice(0, 800) + (fileText.length > 800 ? '\n...' : '');
+      textPreview.classList.add('visible');
+      showFileInfo(file, '📊 PPTX extracted');
+      return;
+    }
+
+    if (ext === 'txt' || ext === 'md' || file.type === 'text/plain' || file.type === 'text/markdown') {
+      const text = await readAsText(file);
+      fileText = text;
+      fileMime = 'text/plain';
+      imgPreview.style.display = 'none';
+      textPreview.textContent = fileText.slice(0, 800) + (fileText.length > 800 ? '\n...' : '');
+      textPreview.classList.add('visible');
+      showFileInfo(file, `📋 ${fileText.split(/\s+/).length} words`);
+      return;
+    }
+
+    showError('Unsupported file type. Please select a valid file for the current tab.');
+  } catch (e) {
+    showError('Error reading file: ' + e.message);
+  } finally {
+    fileLoader.classList.remove('visible');
+  }
+}
+
+function readAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function readAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsText(file);
+  });
+}
+
+async function extractPptxText(file) {
+  const zip = await JSZip.loadAsync(file);
+  const slideFiles = Object.keys(zip.files)
+    .filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+    .sort();
+
+  if (slideFiles.length === 0) {
+    throw new Error('No slides found in this PPTX file');
+  }
+
+  const slides = [];
+  for (let i = 0; i < slideFiles.length; i++) {
+    const xmlStr = await zip.files[slideFiles[i]].async('string');
+    const matches = xmlStr.match(/<a:t[^>]*>([^<]*)<\/a:t>/g) || [];
+    const slideText = matches.map(m => m.replace(/<[^>]+>/g, '')).filter(Boolean).join(' ');
+    if (slideText.trim()) {
+      slides.push(`[Slide ${i + 1}]\n${slideText}`);
+    }
+  }
+
+  if (slides.length === 0) {
+    throw new Error('No text content found in any slides');
+  }
+
+  return slides.join('\n\n');
+}
+
+function showFileInfo(file, note) {
+  const size = file.size > 1024 * 1024
+    ? (file.size / 1024 / 1024).toFixed(1) + ' MB'
+    : (file.size / 1024).toFixed(0) + ' KB';
+  fileInfo.innerHTML = `
+    <span class="fname">${file.name}</span>
+    <span class="file-badge">${size}</span>
+    ${note ? `<span style="color:var(--success);font-size:10px">${note}</span>` : ''}
+    <button class="change-btn" onclick="triggerChange()">CHANGE FILE</button>
+  `;
+  upPlaceholder.style.display = 'none';
+  filePreview.classList.add('visible');
+  uploadZone.classList.add('has-file');
+  checkReady();
+}
+
+window.triggerChange = function () {
+  resetFile();
+  setTimeout(() => fileInput.click(), 50);
+};
+
+function resetFile() {
+  fileData = null; fileText = null; fileMime = null; fileName = '';
+  fileInput.value = '';
+  imgPreview.src = ''; imgPreview.style.display = 'none';
+  textPreview.textContent = ''; textPreview.classList.remove('visible');
+  filePreview.classList.remove('visible');
+  upPlaceholder.style.display = '';
+  uploadZone.classList.remove('has-file', 'drag-over');
+  sizeWarn.classList.remove('visible');
+  results.classList.remove('visible');
+  errBox.classList.remove('visible');
+  resultBox.innerHTML = '';
+  checkReady();
+}
+
+function checkReady() {
+  const key = apiKeyEl.value.trim();
+  goBtn.disabled = !(key.length > 20 && (fileData || fileText));
+}
+
+function buildPrompt(fmt, custom, isTextFile) {
+  const extra = custom ? `\n\nAdditional instruction: ${custom}` : '';
+  const base = {
+    table: `Extract ALL data from this ${isTextFile ? 'document' : 'image'} into a JSON array of objects. Use headers as keys. Return ONLY raw JSON array, no markdown, no backticks.${extra}`,
+    json: `Extract ALL data as a structured JSON object or array. Return ONLY valid JSON, no markdown.${extra}`,
+    csv: `Extract ALL data as CSV. First row = headers. Comma-delimited. Return ONLY raw CSV text.${extra}`,
+    list: `Extract all information as an organized list. Return ONLY the list.${extra}`,
+    markdown: `Extract all data as clean Markdown. Use headers, tables, lists. Return ONLY Markdown.${extra}`,
+    summary: `Summarize everything in this ${isTextFile ? 'document' : 'image'}. Organize by category. Include all numbers and dates.${extra}`
+  };
+  return base[fmt] || base.table;
+}
+
+goBtn.addEventListener('click', async () => {
+  const apiKey = apiKeyEl.value.trim();
+  if (!apiKey || (!fileData && !fileText)) return;
+
+  goBtn.classList.add('loading');
+  goBtn.disabled = true;
+  goBtn.querySelector('.btn-txt').textContent = 'EXTRACTING...';
+  errBox.classList.remove('visible');
+  results.classList.remove('visible');
+  resultBox.innerHTML = '';
+
+  try {
+    const prompt = buildPrompt(selectedFmt, document.getElementById('customPrompt').value.trim(), !!fileText);
+
+    let data = null;
+    let text = null;
+    let mime = null;
+
+    if (fileText) {
+      const truncated = fileText.length > MAX_TEXT_CHARS;
+      text = truncated
+        ? fileText.slice(0, MAX_TEXT_CHARS) + '\n\n[...truncated at ' + MAX_TEXT_CHARS + ' chars...]'
+        : fileText;
+      if (truncated) {
+        showError('Note: Large file was truncated to ' + MAX_TEXT_CHARS + ' characters for processing.');
+      }
+    } else {
+      data = fileData;
+      mime = fileMime;
+    }
+
+    const payload = {
+      apiKey,
+      prompt,
+      model: 'gemini-2.0-flash-lite',
+      data,
+      mime,
+      text
+    };
+
+    const res = await fetch('/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      throw new Error(json?.error || `Server error ${res.status}`);
+    }
+
+    const candidate = json.candidates?.[0];
+    if (!candidate) {
+      throw new Error(
+        json.promptFeedback?.blockReason
+          ? `Blocked: ${json.promptFeedback.blockReason}`
+          : 'No response from model. Try again.'
+      );
+    }
+    if (candidate.finishReason === 'SAFETY') {
+      throw new Error('Content blocked by safety filters. Try a different prompt or file.');
+    }
+    const resultText = candidate.content?.parts?.[0]?.text;
+    if (!resultText?.trim()) {
+      throw new Error('Empty response. Try a different file or format.');
+    }
+
+    lastRaw = resultText;
+    renderResult(resultText, selectedFmt);
+    results.classList.add('visible');
+    setTimeout(() => results.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+
+  } catch (e) {
+    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+      showError('Could not reach the server. Make sure the app is deployed on Vercel and try again.');
+    } else if (e.message.includes('API_KEY_INVALID')) {
+      showError('Invalid API key. Please check your Gemini API key and try again.');
+    } else if (e.message.includes('quota') || e.message.includes('RATE_LIMIT')) {
+      showError('API rate limit exceeded. Please wait a moment and try again.');
+    } else {
+      showError(e.message);
+    }
+  } finally {
+    goBtn.classList.remove('loading');
+    goBtn.disabled = false;
+    goBtn.querySelector('.btn-txt').textContent = 'EXTRACT DATA';
+  }
+});
+
+function renderResult(text, fmt) {
+  resultBox.innerHTML = '';
+  if (fmt === 'table' || fmt === 'json') {
+    let clean = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    try {
+      const parsed = JSON.parse(clean);
+      if (fmt === 'table' && Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+        renderTable(parsed);
+        return;
+      }
+      const pre = document.createElement('pre');
+      pre.className = 'result-out';
+      pre.textContent = JSON.stringify(parsed, null, 2);
+      resultBox.appendChild(pre);
+      return;
+    } catch (_) {
+      const note = document.createElement('div');
+      note.className = 'parse-note';
+      note.textContent = '// Could not parse as JSON — showing raw text.';
+      resultBox.appendChild(note);
+    }
+  }
+  const pre = document.createElement('pre');
+  pre.className = 'result-out';
+  pre.textContent = text;
+  resultBox.appendChild(pre);
+}
+
+function renderTable(rows) {
+  const headers = [...new Set(rows.flatMap(r => Object.keys(r)))];
+  const wrap = document.createElement('div');
+  wrap.className = 'tbl-wrap';
+  const tbl = document.createElement('table');
+  tbl.className = 'rtbl';
+  const thead = tbl.createTHead();
+  const hr = thead.insertRow();
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    hr.appendChild(th);
+  });
+  const tbody = tbl.createTBody();
+  rows.forEach(row => {
+    const tr = tbody.insertRow();
+    headers.forEach(h => {
+      const td = tr.insertCell();
+      td.textContent = row[h] ?? '';
+    });
+  });
+  wrap.appendChild(tbl);
+  resultBox.appendChild(wrap);
+}
+
+function showError(msg) {
+  errBox.textContent = '⚠ ' + msg;
+  errBox.classList.add('visible');
+}
+
+copyBtn.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(lastRaw);
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = lastRaw;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  copyBtn.textContent = 'COPIED!';
+  copyBtn.classList.add('flash');
+  setTimeout(() => { copyBtn.textContent = 'COPY'; copyBtn.classList.remove('flash'); }, 2000);
+});
+
+dlBtn.addEventListener('click', () => {
+  const ext = { table: 'json', json: 'json', csv: 'csv', list: 'txt', markdown: 'md', summary: 'txt' }[selectedFmt] || 'txt';
+  const blob = new Blob([lastRaw], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `anyshot-extract.${ext}`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+newBtn.addEventListener('click', () => {
+  resetFile();
+  document.getElementById('customPrompt').value = '';
+  lastRaw = '';
+});
+</script>
+</body>
+</html>

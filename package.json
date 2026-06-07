@@ -1,0 +1,9 @@
+{
+  "name": "anyshot",
+  "version": "2.0.0",
+  "description": "AnyShot — Universal Data Extractor (CORS-fixed)",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  }
+}
